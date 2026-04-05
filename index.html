@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Fascicolo studente - Bill Holloway</title>
+    <style>
+        :root {
+            --bg-paper: #fdfaf3;
+            --folder-tan: #dcc2a1;
+            --folder-dark: #bfa58a;
+            --ink: #5d4037;
+            --gold: #d4af37;
+        }
+
+        body {
+            background: #1a120b;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; perspective: 2500px;
+            font-family: 'Courier New', Courier, monospace; color: var(--ink);
+            overflow: hidden;
+        }
+
+        /* STRUTTURA CARTACEA */
+        .folder {
+            width: 550px; height: 750px;
+            position: relative; background: var(--folder-dark);
+            border-radius: 5px 15px 15px 5px; box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+            border-left: 18px solid #8d7358; transform-style: preserve-3d;
+            transition: transform 0.8s ease;
+        }
+        .folder.is-open { transform: translateX(100px); }
+
+        /* COPERTINA REVELIO */
+        .cover {
+            position: absolute; width: 100%; height: 100%;
+            top: 0; left: 0; transform-origin: left; transform-style: preserve-3d;
+            transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000; cursor: pointer;
+        }
+        .is-open .cover { transform: rotateY(-170deg); }
+
+        .cover-front {
+            position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+            background: linear-gradient(135deg, var(--folder-tan) 45%, #222 50%, #111 55%);
+            background-size: 400% 400%; background-position: 100% 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            border-left: 15px solid #111; transition: 1.5s ease-in-out;
+            border-radius: 5px 15px 15px 5px;
+        }
+        .is-unlocked .cover-front { background-position: 0% 0%; border-left-color: #8d7358; }
+
+        .cover-back {
+            position: absolute; width: 100%; height: 100%; transform: rotateY(180deg);
+            backface-visibility: hidden; background: var(--folder-dark);
+            border-right: 15px solid #8d7358; border-radius: 15px 5px 5px 15px;
+            padding: 40px; box-sizing: border-box;
+        }
+
+        /* DISCLAIMER STYLE */
+        .m-disclaimer {
+            margin-top: 50px;
+            padding: 20px;
+            border: 1px solid rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.65em;
+            line-height: 1.6;
+            color: var(--ink);
+            text-align: justify;
+            font-style: italic;
+        }
+
+        #revelio-btn {
+            color: var(--gold); font-size: 1.8em; letter-spacing: 10px;
+            cursor: pointer; background: none; border: none; font-family: inherit;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+            transition: transform 0.3s ease, opacity 0.5s;
+        }
+        #revelio-btn:hover { transform: scale(1.2); }
+        #cover-title { display: none; text-align: center; opacity: 0; transition: 1s; }
+
+        /* TABS */
+        .tabs-container {
+            position: absolute; right: -42px; top: 60px;
+            display: flex; flex-direction: column; gap: 8px; z-index: 2000;
+        }
+        .tab {
+            background: var(--folder-tan); padding: 15px 8px; writing-mode: vertical-rl;
+            border-radius: 0 5px 5px 0; font-size: 10px; font-weight: bold;
+            cursor: pointer; opacity: 0; transform: translateX(-10px);
+            transition: 0.4s; border: 1px solid rgba(0,0,0,0.2);
+        }
+        .tab.visible { opacity: 1; transform: translateX(0); }
+
+        /* PAGINE */
+        .internal-pages {
+            position: absolute; width: 94%; height: 96%;
+            top: 2%; left: 3%; background: var(--bg-paper);
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.05);
+            z-index: 10; overflow: hidden;
+        }
+        .paper { position: absolute; width: 100%; height: 100%; padding: 50px; box-sizing: border-box; background: var(--bg-paper); display: none; }
+        .slide-in-right { display: block; animation: slideR 0.5s forwards; }
+        .slide-in-left { display: block; animation: slideL 0.5s forwards; }
+        @keyframes slideR { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        @keyframes slideL { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+
+        /* NAVIGAZIONE ANGOLI */
+        .nav-corner {
+            position: absolute; bottom: 0; width: 70px; height: 70px;
+            z-index: 500; cursor: pointer; transition: 0.4s;
+            display: flex; align-items: flex-end; padding: 10px; box-sizing: border-box;
+            font-size: 0.6em; font-weight: bold; color: rgba(0,0,0,0.2);
+        }
+        .corner-prev { left: 0; justify-content: flex-start; border-radius: 0 100% 0 0; }
+        .corner-next { right: 0; justify-content: flex-end; border-radius: 100% 0 0 0; }
+        .nav-corner:hover { background: rgba(0,0,0,0.05); height: 90px; width: 90px; color: var(--ink); }
+
+        /* POP-UP BACCHETTA */
+        .wand-area { width: 100%; height: 160px; background: #eee; position: relative; margin: 30px 0; border: 1px solid #ddd; overflow: visible; }
+        .hotspot-group { position: absolute; width: 16px; height: 16px; transform: translate(-50%, -50%); z-index: 600; }
+        .dot { width: 100%; height: 100%; background: var(--gold); border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 10px var(--gold); cursor: help; }
+        .magic-popup {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: var(--ink); color: #fff; padding: 8px 12px; border-radius: 5px; font-size: 0.7em; white-space: nowrap;
+            opacity: 0; visibility: hidden; transition: 0.3s; pointer-events: none; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .hotspot-group:hover .magic-popup { opacity: 1; visibility: visible; bottom: 35px; }
+
+        /* LAYOUT */
+        .m-header { text-align: center; border-bottom: 2px solid var(--ink); margin-bottom: 25px; }
+        .photo-frame { width: 130px; height: 150px; border: 2px solid #ccc; float: right; background: #eee; margin-left: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="folder" id="myFolder">
+        <div class="tabs-container">
+            <div class="tab" onclick="jumpTo('anagrafica')">ANAGRAFICA</div>
+            <div class="tab" onclick="jumpTo('catalizzatore')">CATALIZZATORE</div>
+            <div class="tab" onclick="jumpTo('anno1')">ANNO I</div>
+            <div class="tab" onclick="jumpTo('anno2')">ANNO II</div>
+            <div class="tab" onclick="jumpTo('anno3')">ANNO III</div>
+            <div class="tab" onclick="jumpTo('anno4')">ANNO IV</div>
+            <div class="tab" onclick="jumpTo('inventario')">INVENTARIO</div>
+        </div>
+
+        <div class="cover" id="mainCover" onclick="toggleFolder()">
+            <div class="cover-front">
+                <button id="revelio-btn" onclick="triggerRevelio(event)">REVELIO</button>
+                <div id="cover-title">
+                    <p style="font-size: 0.6em; letter-spacing: 2px;">Codice univoco #87402-BH</p>
+                    <h2 style="border: 2px solid var(--ink); padding: 10px; margin: 10px 0;">BILL HOLLOWAY</h2>
+                    <p style="font-weight: bold; letter-spacing: 4px;">MINISTERO DELL'ISTRUZIONE MAGICA</p>
+                </div>
+            </div>
+
+            <div class="cover-back">
+                <div style="text-align: center; opacity: 0.2; margin-bottom: 20px; font-weight: bold; font-size: 2em;">M.M.</div>
+                <div class="m-disclaimer">
+                    <strong>Avviso di Riservatezza</strong>
+                    Questo materiale è realizzato esclusivamente per finalità di roleplay e intrattenimento, senza alcun fine commerciale. 
+                    Tutti i personaggi e i materiali visivi sono originali; video e immagini da qui in avanti sono generati tramite intelligenza artificiale. 
+                    Eventuali nomi che possano riferirsi a persone reali sono da considerarsi puramente casuali. 
+                    Non si intende rivendicare alcuna proprietà intellettuale né creare contenuti ufficiali o a scopo di lucro. 
+                    Ogni riferimento a universi esistenti è da intendersi come puramente narrativo.
+                </div>
+            </div>
+        </div>
+
+        <div class="internal-pages">
+            <div class="nav-corner corner-prev" onclick="prevPage(event)">PREV</div>
+            <div class="nav-corner corner-next" onclick="nextPage(event)">NEXT</div>
+
+			<div class="paper slide-in-right" id="p-anagrafica">
+				<div class="m-header"><h3>SCHEDA ANAGRAFICA</h3></div>
+    
+				<div class="photo-frame" style="float: right; width: 130px; height: 150px; border: 2px solid #ccc; margin-left: 20px; margin-bottom: 30px; overflow: hidden; background: #eee;">
+					<img src="https://raw.githubusercontent.com/grr-casualaccount/billholloway-fascicolo-gdr/main/pv4anno.png" style="width: 100%; height: 100%; object-fit: cover;">
+				</div>
+
+				<div class="m-row" style="margin-bottom: 12px; border-bottom: 1px dotted #eee; padding-bottom: 5px;"><span class="m-value"><strong>BILL HOLLOWAY</strong></span></div>
+				<div class="m-row" style="margin-bottom: 12px; border-bottom: 1px dotted #eee; padding-bottom: 5px;"><span class="m-label"><strong>NATO IL: </strong></span><span class="m-value">21/10/20XX</span></div>
+				<div class="m-row" style="margin-bottom: 12px; border-bottom: 1px dotted #eee; padding-bottom: 5px;"><span class="m-label"><strong>LOCALITA': </strong></span><span class="m-value">Birmingham, UK</span></div>
+				<div class="m-row" style="margin-bottom: 12px; border-bottom: 1px dotted #eee; padding-bottom: 5px;"><span class="m-label"><strong>LIGNAGGIO: </strong></span><span class="m-value">Mezzosangue</span></div>
+				<div class="m-row" style="margin-bottom: 12px; border-bottom: 1px dotted #eee; padding-bottom: 5px;"><span class="m-label"><strong>SMISTATO NELL'A.A.: </strong></span><span class="m-value">2025</span></div>
+				<p></p>
+				<div style="clear: both; margin-top: 40px; border: 1px solid #ddd; padding: 15px; font-size: 0.8em; min-height: 180px;">
+					<strong>NOTE:</strong>
+					<p>Si nota una preferenza verso le arti trasfigurative e verso la difesa contro le arti oscure.</p>
+					<p>Si definisce una persona dal carattere emotivo e talvolta impulsivo. Ciò altera un'ottima capacità di riflessione.</p>
+					<p>Figlio di due maghi diplomati.</p>
+					<p>Padre: Theodor Holloway - Diplomato - Attualmente impiegato presso il Ministero della Magia.</p>
+					<p>Madre: Lucia Herrera (in Holloway) - Diplomata - Deceduta.</p>
+				</div>
+			</div>
+
+            <div class="paper" id="p-catalizzatore">
+                <div class="m-header"><h3>IL CATALIZZATORE</h3></div>
+                
+                <div class="wand-area" style="position: relative; width: 100%; height: 120px; margin: 40px 0; background: transparent; overflow: visible;">
+    
+					<img src="https://raw.githubusercontent.com/grr-casualaccount/billholloway-fascicolo-gdr/main/bacchettadefinitva.png" style="width: 100%; height: 100%; object-fit: cover;">
+                    <div class="hotspot-group" style="top:25%; left:15%;">
+                        <div class="dot"></div>
+                        <div class="magic-popup">NUCLEO: Dente di avvincino</div>
+                    </div>
+                    <div class="hotspot-group" style="top:65%; left:45%;">
+                        <div class="dot"></div>
+                        <div class="magic-popup">LEGNO: Noce Nero</div>
+                    </div>
+                    <div class="hotspot-group" style="top:75%; right:20%;">
+                        <div class="dot"></div>
+                        <div class="magic-popup">LUNGHEZZA: 17 pollici</div>
+                    </div>
+                    <div class="hotspot-group" style="top:25%; right:25%;">
+                        <div class="dot"></div>
+                        <div class="magic-popup">FLESSIBILITA': Sufficientemente rigida</div>
+                    </div>
+                </div>
+				
+				<div style="margin-top: 15px; border: 1px solid #ddd; padding: 15px; font-size: 0.8em; min-height: 160px;">
+                    <strong>NOTE:</strong>
+					<p>Le bacchette in noce nero sono particolari e decidono di affidarsi a quelle persone nobili d'animo, con una grande coerenza interna. La stessa lunghezza del catalizzatore, superiore alla media, sembra confermare la scelta della bacchetta.</p>
+					<p>Questa flessibilità indica una bacchetta fedele al mago. Si presta a pochi eletti. Il nucleo in dente di avvincino sembra fa pensare ad una propensione verso l'elemento acquatico.</p>
+				</div>
+
+            <div class="pet-section" style="display: flex; align-items: center; gap: 25px; margin-top: 20px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 20px;">
+    
+				<div style="width: 110px; height: 110px; border-radius: 50%; border: 2px solid var(--gold); overflow: hidden; flex-shrink: 0; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+					<img src="https://raw.githubusercontent.com/grr-casualaccount/billholloway-fascicolo-gdr/main/gufoselvatico.png" style="width: 100%; height: 100%; object-fit: cover;">
+				</div>
+
+				<div style="display: flex; flex-direction: column; justify-content: center;">
+					<p style="margin: 0 0 10px 0; font-weight: bold; font-size: 1.1em; color: var(--ink); letter-spacing: 1px;">SAPIENTIA</p>
+        
+					<div style="font-size: 0.85em; line-height: 1.6;">
+					<div style="margin-bottom: 2px;"><strong style="color: #888; font-size: 0.8em; text-transform: uppercase;">Specie:</strong> Gufo selvatico</div>
+					<div style="margin-bottom: 2px;"><strong style="color: #888; font-size: 0.8em; text-transform: uppercase;">Dimensioni:</strong> 40cm</div>
+					<div style="margin-bottom: 2px;"><strong style="color: #888; font-size: 0.8em; text-transform: uppercase;">Apertura alare:</strong> 96cm</div>
+					<div style="margin-bottom: 2px;"><strong style="color: #888; font-size: 0.8em; text-transform: uppercase;">Occhi:</strong> Arancioni</div>
+					</div>
+				</div>
+
+			</div>
+                </div>
+
+            <div class="paper" id="p-anno1">
+				<h3>ANNO I</h3>
+				<p>Lo studente frequenta le lezioni regolarmente dimostrando un’ottima predisposizione nelle arti magiche che prevedono l’uso della bacchetta. Pecca invece nelle materie più teoriche.</p>
+
+				<p>Siede spesso con la studentessa Burton N. con cui si aiuta vicendevolmente nello studio.
+				<p>Al di fuori delle lezioni lo si vede girare spesso con studenti concasati (Moonhollow S., Parrot M., Specter H.) e non (Manson B., Sterling H., Sterling I.).</p>
+
+				<p>L’anno trascorre senza molti acuti per lo studente che è stato tenuto all’oscuro di quanto accaduto alla studentessa Burton N. al fine di evitare che la situazione degenerasse ulteriormente.
+
+				<p>Sembrerebbe essersi accorto solo verso la fine dell’anno accademico di essere stato il membro del gruppo meno informato. I rapporti con Sterling I. sembrano gravemente incrinati. Da tenere d’occhio nel futuro più prossimo.</p>	
+			</div>
+            
+			<div class="paper" id="p-anno2">
+				<h3>ANNO II</h3>
+				<p>Lo studente non ha preso parte al II anno a causa di problemi extra-curriculari.</p>
+				<p>Il signor Holloway ci ha prontamente informati che, a causa delle sue mansioni ministeriali, entrambi hanno dovuto lasciare il Regno Unito per un periodo di tempo indeterminato. Si recheranno in Spagna, paese natio della madre.
+				Lo studente passerà ugualmente al III anno accademico in quanto il genitore ci ha assicurato che seguirà lui stesso la progressione negli studi. Si spera che ciò possa migliorare il rendimento dello studente nelle materie di stampo teorico.</p>
+				<p>Potrebbe esserci necessità di effettuare un test pratico per accertarsi delle sue effettive capacità anche con la bacchetta.</p>
+
+				<p>Concludiamo il rapporto con il dire che lo studente ha fatto ritorno nel Regno Unito. L’anno prossimo si parteciperà regolarmente alla vita accademica.
+				Per correttezza, il padre ci ha informati che il ragazzo sa della sua professione ministeriale.</p>
+
+				<p>Da tenere d’occhio il prossimo anno accademico.</p>
+			</div>
+			
+            <div class="paper" id="p-anno3">
+				<h3>ANNO III</h3>
+				<p>Il terzo anno è per molti studenti il più duro mai affrontato. Oltre alle vicissitudini accadute nei pressi del castello (basti vedere le acromantule), il gruppo del ragazzo sembra essersi sfaldato. Il suo sguardo è sembrato più cupo negli ultimi periodi</p>
+				<p>Durante quest'anno accademico sembra aver disteso i propri rapporti con Sterling I. . Sembra aver stretto una solida amicizia con la caposcuola Dawnspring L. . Tuttavia ci viene notificato che si è scontrato spesso con gli studenti DeNigir A. e Thornecraft J.M. .</p>
+				<p>Accademicamente parlando sembra aver colmato ogni lacuna dell'anno precedente. Partecipa attivamente a quasi tutte le lezioni (soprattutto quelle in cui è richiesto l'uso del catalizzatore). Spesso è presente al club di duello tenuto dalla docente di DCAO Camus E. dove prende parte a qualche duello amichevole con coetanei e non.</p>
+				<p>Negli ultimi mesi di permanenza al castello ha fatto domande circa la professione del padre.</p>
+				<p>Situazione da tenere strettamente sotto controllo.</p>
+			</div>
+            <div class="paper" id="p-anno4">
+				<h3>ANNO IV</h3>
+				<p>Diventa prefetto della sua casata ereditando il ruolo da Burton N. . Seguono aggiornamenti </p>
+			</div>
+			
+            <div class="paper" id="p-inventario">
+				<h3>INVENTARIO</h3>
+				<ul>
+					<li>Galeoni: 0</li>
+					<li>Stemma da prefetto</li>
+					<li>Benda bianca di Lydia</li>
+					<li>Libro "Maghi Meritevoli: I migliori studenti e le loro carriere"</li>
+				</ul>
+				<h3>TALENTI</h3>
+				<ul>
+					<li>MAGO DA GUERRA (NOVIZIO): Non subisce malus nel castare incantesimi a distanza ravvicinata.</li>
+					<li>AFFINITA' ELEMENTALE (NOVIZIO): +1 al risultato quando si lancia un incantesimo elementale.</li>
+					<li>MENTE FREDDA (NOVIZIO): +1 ai tiri in situazioni di alterazione emotiva.</li>
+				</ul>
+			</div>
+        </div>
+    </div>
+
+    <script>
+        let unlocked = false;
+        let open = false;
+        let pageIds = ['anagrafica', 'catalizzatore', 'anno1', 'anno2', 'anno3', 'anno4', 'inventario'];
+        let currentIndex = 0;
+
+        function triggerRevelio(e) {
+            e.stopPropagation();
+            document.getElementById('myFolder').classList.add('is-unlocked');
+            document.getElementById('revelio-btn').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('revelio-btn').style.display = 'none';
+                const title = document.getElementById('cover-title');
+                title.style.display = 'block';
+                setTimeout(() => title.style.opacity = '1', 50);
+                document.querySelectorAll('.tab').forEach((t, i) => {
+                    setTimeout(() => t.classList.add('visible'), i * 150);
+                });
+                unlocked = true;
+            }, 1200);
+        }
+
+        function toggleFolder() {
+            if (!unlocked) return;
+            open = !open;
+            document.getElementById('myFolder').classList.toggle('is-open');
+        }
+
+        function jumpTo(id) {
+            if (event) event.stopPropagation();
+            if (!open) toggleFolder();
+            let newIndex = pageIds.indexOf(id);
+            updatePage(newIndex, newIndex > currentIndex ? 'right' : 'left');
+        }
+
+        function nextPage(e) {
+            e.stopPropagation();
+            if (!open || currentIndex >= pageIds.length - 1) return;
+            updatePage(currentIndex + 1, 'right');
+        }
+
+        function prevPage(e) {
+            e.stopPropagation();
+            if (!open || currentIndex <= 0) return;
+            updatePage(currentIndex - 1, 'left');
+        }
+
+        function updatePage(newIndex, direction) {
+            const papers = document.querySelectorAll('.paper');
+            papers.forEach(p => { p.className = 'paper'; p.style.display = 'none'; });
+            currentIndex = newIndex;
+            const activePage = document.getElementById('p-' + pageIds[currentIndex]);
+            activePage.style.display = 'block';
+            activePage.classList.add(direction === 'right' ? 'slide-in-right' : 'slide-in-left');
+        }
+    </script>
+</body>
+</html>
